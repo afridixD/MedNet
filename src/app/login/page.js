@@ -3,16 +3,13 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-
-
 export default function LoginPage() {
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-    const [identifier, setIdentifier] = useState('');
-    const [password, setPassword] = useState('');
-    const [loading, setLoading] = useState(false);
-    const router = useRouter();
-
-    const handleLogin = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
 
@@ -25,17 +22,28 @@ export default function LoginPage() {
 
       const data = await res.json();
 
+      // login/page.js
       if (res.ok) {
-        router.push('/dashboard'); 
-      } else {
+      // FIX: Access id through data.user.id
+      const userId = data.user.id; 
+  
+        if (userId) {
+          router.push(`/dashboard?userId=${userId}`);
+        } else {
+          console.error("User ID not found in response", data);
+        }
+      }
+      
+      else {
         alert(data.message || "Login failed");
       }
     } catch (error) {
       console.error("Login error:", error);
+      alert("Something went wrong. Please check your connection.");
     } finally {
       setLoading(false);
     }
-    };
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100 font-manrope px-4">
@@ -46,11 +54,14 @@ export default function LoginPage() {
           <p className="text-slate-500 text-base">Enter your credentials to continue</p>
         </div>
 
-        <form className="space-y-5">
+        <form className="space-y-5" onSubmit={handleLogin}>
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 ml-1">Email or Username</label>
             <input 
               type="text" 
+              required
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               placeholder="name@example.com" 
               className="w-full p-4 rounded-xl border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-400"
             />
@@ -58,13 +69,14 @@ export default function LoginPage() {
           
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 ml-1">Password</label>
-            <div className="relative">
-              <input 
-                type="password" 
-                placeholder="••••••••" 
-                className="w-full p-4 rounded-xl border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-400"
-              />
-            </div>
+            <input 
+              type="password" 
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••" 
+              className="w-full p-4 rounded-xl border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-400"
+            />
           </div>
 
           <div className="flex items-center justify-between text-sm pt-2">
@@ -75,8 +87,12 @@ export default function LoginPage() {
             <Link href="#" className="text-blue-600 font-bold hover:underline">Forgot password?</Link>
           </div>
 
-          <button type="button" className="text-lg w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl transition-all shadow-lg shadow-blue-200 mt-4">
-            Sign In
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="text-lg w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl transition-all shadow-lg shadow-blue-200 mt-4 active:scale-95 disabled:opacity-70"
+          >
+            {loading ? "Signing In..." : "Sign In"}
           </button>
         </form>
 

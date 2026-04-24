@@ -2,6 +2,25 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 export default function LandingPage() {
+
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+  const res = await fetch('/api/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(formData),
+  });
+
+  const data = await res.json();
+
+  if (res.ok) {
+    router.push(`/register/onboarding?userId=${data.userId}`);
+  } else {
+    alert(data.error || "Registration failed");
+  }
+};
+
   return (
     <main className="relative min-h-screen flex flex-col items-center justify-center px-4 overflow-hidden">
       
@@ -35,11 +54,9 @@ export default function LandingPage() {
         {/* The Button Group */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
         
-          <Link href='/register'>
             <button className="text-lg px-8 py-4 bg-blue-600 border-2 border-blue-600 text-white font-bold rounded-full hover:bg-white hover:border-white hover:text-blue-600 transition-all duration-300 active:scale-95 font-manrope">
             Create an Account
             </button>
-          </Link>
 
           <Link href='/login'>
             <button className="text-lg px-8 py-4 bg-white border-2 border-slate-200 text-blue-600 font-bold rounded-full hover:bg-blue-600 hover:border-blue-600 hover:text-white transition-all duration-300 active:scale-95 font-manrope">
