@@ -15,33 +15,38 @@ export default function Dashboard() {
   const [filteredDoctors, setFilteredDoctors] = useState([]);
   const [bookingData, setBookingData] = useState({ doctorId: '', date: '', time: '' });
 
-  useEffect(() => {
-    async function fetchData() {
-      const storedUserId = localStorage.getItem('userId');
-      const params = new URLSearchParams(window.location.search);
-      const userId = params.get('userId') || storedUserId || 6;
+  const fetchData = async () => {
+    const storedUserId = localStorage.getItem('userId');
+    const params = new URLSearchParams(window.location.search);
+    const userId = params.get('userId') || storedUserId || 6;
 
-      try {
-        const [appRes, profRes, docListRes] = await Promise.all([
-          fetch(`/api/appointments?userId=${userId}`),
-          fetch(`/api/profile?userId=${userId}`),
-          fetch(`/api/appointments`) 
-        ]);
-        
-        const appData = await appRes.json();
-        const profData = await profRes.json();
-        const docListData = await docListRes.json();
+    try {
+      // CACHE BUSTER: Ensures fresh data is fetched every 5 seconds
+      const cacheBuster = `&t=${Date.now()}`;
+      const [appRes, profRes, docListRes] = await Promise.all([
+        fetch(`/api/appointments?userId=${userId}${cacheBuster}`),
+        fetch(`/api/profile?userId=${userId}${cacheBuster}`),
+        fetch(`/api/assistant/doctors`) 
+      ]);
+      
+      const appData = await appRes.json();
+      const profData = await profRes.json();
+      const docListData = await docListRes.json();
 
-        setAppointments(Array.isArray(appData) ? appData : []);
-        setProfile(profData);
-        setDoctors(Array.isArray(docListData) ? docListData : []);
-      } catch (error) {
-        console.error("Fetch failed:", error);
-      } finally {
-        setLoading(false);
-      }
+      setAppointments(Array.isArray(appData) ? appData : []);
+      setProfile(profData);
+      setDoctors(Array.isArray(docListData) ? docListData : []);
+    } catch (error) {
+      console.error("Fetch failed:", error);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     fetchData();
+    const interval = setInterval(fetchData, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -69,6 +74,11 @@ export default function Dashboard() {
 
   const bmi = calculateBMI(profile?.weight, profile?.height);
   const age = calculateAge(profile?.dob);
+  
+  // AUTOMATIC VISIT COUNTING: Only counts Confirmed appointments with a Prescription
+  const completedVisits = appointments.filter(appt => 
+    String(appt.status || "").toLowerCase().trim() === 'confirmed' && appt.prescription_id
+  ).length;
 
   return (
     <div className="flex min-h-screen bg-slate-50 font-manrope">
@@ -102,15 +112,18 @@ export default function Dashboard() {
         {activeTab === 'overview' && (
           <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <StatCard label="Total Visits" value={appointments.length} icon={<Activity className="text-blue-500"/>} />
+              <StatCard label="Total Visits" value={completedVisits} icon={<Activity className="text-blue-500"/>} />
               <StatCard label="Blood Group" value={profile?.bloodGroup || "N/A"} icon={<Droplets className="text-red-500"/>} />
               <StatCard label="Age" value={age === "N/A" ? "N/A" : `${age} Yrs`} icon={<User className="text-green-500"/>} />
-              <StatCard label="BMI Status" value={bmi === "N/A" ? "N/A" : (bmi < 18.5 ? "Underweight" : bmi < 25 ? "Normal" : "Overweight")} icon={<Activity className="text-amber-500"/>} />
+              <StatCard label="BMI Status" value={bmi === "N/A" ? "N/A" : (bmi < 18.5 ? "Underweight" : bmi < 25 ? "Normal" : bmi < 30 ? "Overweight" : "Obese")} icon={<Activity className="text-amber-500"/>} />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-              <div className="lg:col-span-2 space-y-6"><h3 className="text-2xl font-black">Recent Activity</h3><AppointmentsTable data={appointments.slice(0, 4)} /></div>
+              <div className="lg:col-span-2 space-y-6">
+                <h3 className="text-2xl font-black text-slate-800">Recent Activity</h3>
+                <AppointmentsTable data={appointments.slice(0, 4)} />
+              </div>
               <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm h-fit">
-                <h3 className="text-xl font-black mb-6">Patient Profile</h3>
+                <h3 className="text-xl font-black mb-6 text-slate-800">Patient Profile</h3>
                 <div className="space-y-4 font-bold">
                     <ProfileItem label="Name" value={profile?.name || "N/A"} />
                     <ProfileItem label="Weight" value={profile?.weight ? `${profile.weight} kg` : "N/A"} />
@@ -123,7 +136,9 @@ export default function Dashboard() {
         )}
 
         {activeTab === 'appointments' && <AppointmentsTable data={appointments} />}
+        
         {activeTab === 'settings' && <SettingsView profile={profile} setProfile={setProfile} />}
+        
         {(activeTab === 'prescriptions' || activeTab === 'billing') && (
           <div className="p-20 text-center text-slate-400 font-bold italic bg-white rounded-[2rem] border border-slate-200">
             No {activeTab} available at this time.
@@ -136,7 +151,7 @@ export default function Dashboard() {
           <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl w-full max-w-lg border border-slate-200">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-3xl font-black text-slate-900 tracking-tighter">Book Appointment</h2>
-              <button onClick={() => { setIsBookingOpen(false); setSelectedSpec(''); }} className="text-slate-400 hover:text-red-500"><Plus size={32} className="rotate-45" /></button>
+              <button onClick={() => { setIsBookingOpen(false); setSelectedSpec(''); }} className="text-slate-400 hover:text-red-500 transition-colors"><Plus size={32} className="rotate-45" /></button>
             </div>
 
             <form onSubmit={async (e) => {
@@ -144,28 +159,43 @@ export default function Dashboard() {
               if (bookingLoading) return;
               setBookingLoading(true);
 
-              const res = await fetch('/api/appointments', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                  userId: profile.userId, 
-                  doctorId: bookingData.doctorId, 
-                  date: `${bookingData.date} ${bookingData.time}` 
-                })
-              });
+              try {
+                const res = await fetch('/api/appointments', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ 
+                    userId: profile.userId, 
+                    doctorId: bookingData.doctorId, 
+                    date: `${bookingData.date} ${bookingData.time}` 
+                  })
+                });
 
-              if (res.ok) {
-                alert("Appointment Requested Successfully!");
-                window.location.reload(); 
-              } else {
-                const err = await res.json();
-                alert(err.error || "Failed to book.");
+                if (res.ok) {
+                  alert("Appointment Requested Successfully!");
+                  setIsBookingOpen(false);
+                  fetchData();
+                } else {
+                  let errorMessage = "Failed to book.";
+                  const contentType = res.headers.get("content-type");
+                  if (contentType && contentType.includes("application/json")) {
+                    const err = await res.json();
+                    errorMessage = err.error || errorMessage;
+                  } else {
+                    const textErr = await res.text();
+                    console.error("Server raw error:", textErr);
+                  }
+                  alert(errorMessage);
+                }
+              } catch (err) {
+                console.error("Network error:", err);
+                alert("Connection failed. Check your server.");
+              } finally {
                 setBookingLoading(false);
               }
             }} className="space-y-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">1. Specialization</label>
-                <select required className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold" onChange={(e) => setSelectedSpec(e.target.value)}>
+                <select required className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold" value={selectedSpec} onChange={(e) => setSelectedSpec(e.target.value)}>
                   <option value="">Select Specialization</option>
                   {specializations.map(spec => <option key={spec} value={spec}>{spec}</option>)}
                 </select>
@@ -239,27 +269,34 @@ function AppointmentsTable({ data }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {data.length > 0 ? data.map((appt) => (
-            <tr key={appt.appointment_id} className="hover:bg-slate-50 transition-colors cursor-pointer">
-              <td className="p-6 font-bold text-slate-900">{appt.doctor_name}</td>
-              <td className="p-6 text-slate-600 font-medium">{appt.specialization}</td>
-              <td className="p-6 text-slate-500 font-medium">
-                {new Date(appt.appointment_date).toLocaleString('en-US', {
-                  month: 'numeric',
-                  day: 'numeric',
-                  year: 'numeric',
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  hour12: true
-                })}
-              </td>
-              <td className="p-6">
-                <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase border ${appt.status === 'Confirmed' ? 'bg-green-50 text-green-700 border-green-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
-                  {appt.status}
-                </span>
-              </td>
-            </tr>
-          )) : (
+          {data.length > 0 ? data.map((appt) => {
+            const status = String(appt.status || "Pending").toLowerCase().trim();
+            return (
+              <tr key={appt.appointment_id} className="hover:bg-slate-50 transition-colors cursor-pointer">
+                <td className="p-6 font-bold text-slate-900">{appt.doctor_name}</td>
+                <td className="p-6 text-slate-600 font-medium">{appt.specialization}</td>
+                <td className="p-6 text-slate-500 font-medium">
+                  {new Date(appt.appointment_date).toLocaleString('en-US', {
+                    month: 'numeric',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                  })}
+                </td>
+                <td className="p-6">
+                  <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase border ${
+                      status === 'confirmed' ? 'bg-green-50 text-green-700 border-green-100' : 
+                      status === 'rejected' ? 'bg-red-50 text-red-700 border-red-100' : 
+                      'bg-amber-50 text-amber-700 border-amber-100'
+                  }`}>
+                    {appt.status && appt.status !== "" ? appt.status : "Pending"}
+                  </span>
+                </td>
+              </tr>
+            );
+          }) : (
             <tr><td colSpan="4" className="p-20 text-center text-slate-400 font-bold italic">No records found.</td></tr>
           )}
         </tbody>
@@ -318,6 +355,9 @@ function SettingsView({ profile, setProfile }) {
 
 function InputGroup({ label, name, value, type = "text" }) {
   return (
-    <div className="space-y-2"><label className="text-xs font-black uppercase text-slate-400 tracking-widest px-1">{label}</label><input name={name} type={type} defaultValue={value} className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-slate-700 focus:ring-2 focus:ring-blue-600 outline-none transition-all" /></div>
+    <div className="space-y-2">
+        <label className="text-xs font-black uppercase text-slate-400 tracking-widest px-1">{label}</label>
+        <input name={name} type={type} defaultValue={value} className="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold text-slate-700 focus:ring-2 focus:ring-blue-600 outline-none transition-all" />
+    </div>
   );
 }

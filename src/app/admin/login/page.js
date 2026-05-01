@@ -1,15 +1,20 @@
 "use client";
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function LoginPage() {
+export default function AdminStaffLogin() {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
 
-  const handleLogin = async (e) => {
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const handleStaffLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
 
@@ -23,54 +28,64 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok) {
-        // --- PATIENT SPECIFIC LOGIN FIX ---
-        // Check if the role is 'Patient'. If it's a Doctor, block them here.
-        if (data.role === 'Patient') {
-          const userId = data.user.id; 
-          
+        // DEFENSIVE CHECK: Handle different possible response structures
+        const role = data.role || data.user?.role;
+        const userId = data.user?.id || data.userId || data.id;
+
+        // NORMALIZATION: Convert to uppercase and trim spaces to prevent "Access Denied" errors
+        const normalizedRole = role ? role.toString().trim().toUpperCase() : '';
+
+        if (normalizedRole === 'DOCTOR' || normalizedRole === 'ASSISTANT' || normalizedRole === 'ADMIN') {
           if (userId) {
-            // Store role and ID for session persistence
             localStorage.setItem('userId', userId);
-            localStorage.setItem('userRole', 'Patient');
-            
-            router.push(`/dashboard?userId=${userId}`);
+            localStorage.setItem('userRole', role); // Store original case for display
+
+            const dashboardRoutes = {
+              'DOCTOR': '/admin-dashboard/doctor',
+              'ASSISTANT': '/admin-dashboard/assistant',
+              'ADMIN': '/admin-dashboard/admin'
+            };
+
+            router.push(dashboardRoutes[normalizedRole]);
           } else {
-            console.error("User ID not found in response", data);
+            alert("System Error: Staff ID not found in database response.");
           }
         } else {
-          // If a doctor tries to log in through the patient portal
-          alert("This portal is for Patients only. Doctors, please use the Clinical Portal.");
+          // This triggers if the role is 'Patient' or undefined
+          alert(`Access Denied: Account role "${role}" is not authorized for the Staff Portal.`);
           setLoading(false);
         }
       } else {
-        alert(data.message || "Login failed");
+        alert(data.message || "Invalid Staff Credentials");
       }
     } catch (error) {
       console.error("Login error:", error);
-      alert("Something went wrong. Please check your connection.");
+      alert("Connection error. Please try again.");
     } finally {
       setLoading(false);
     }
   };
+
+  if (!isMounted) return null;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100 font-manrope px-4">
       <div className="bg-white p-10 rounded-2xl shadow-2xl border border-slate-200 w-full max-w-[450px]">
         
         <div className="text-center mb-8">
-          <h1 className="font-poppins text-3xl font-semibold text-slate-900 mb-2">Sign In</h1>
-          <p className="text-slate-500 text-base">Patient Access Portal</p>
+          <h1 className="font-poppins text-3xl font-semibold text-slate-900 mb-2">Staff Portal</h1>
+          <p className="text-slate-500 text-base">Clinical & Admin Access</p>
         </div>
 
-        <form className="space-y-5" onSubmit={handleLogin}>
+        <form className="space-y-5" onSubmit={handleStaffLogin}>
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 ml-1">Email or Username</label>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 ml-1">Clinic Email</label>
             <input 
               type="text" 
               required
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="name@example.com" 
+              placeholder="staff@mednet.com" 
               className="w-full p-4 rounded-xl border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-400"
             />
           </div>
@@ -90,30 +105,19 @@ export default function LoginPage() {
           <div className="flex items-center justify-between text-sm pt-2">
             <label className="flex items-center gap-2 text-slate-700 cursor-pointer font-medium">
               <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-blue-600" />
-              Remember me
+              Remember device
             </label>
-            <Link href="#" className="text-blue-600 font-bold hover:underline">Forgot password?</Link>
+            <Link href="#" className="text-blue-600 font-bold hover:underline">Reset access?</Link>
           </div>
 
           <button 
             type="submit" 
             disabled={loading}
-            className="text-lg w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl transition-all shadow-lg shadow-blue-200 mt-4 active:scale-95 disabled:opacity-70"
+            className="text-lg w-full py-4 bg-slate-900 hover:bg-blue-700 text-white font-black rounded-xl transition-all shadow-lg shadow-slate-200 mt-4 active:scale-95 disabled:opacity-70"
           >
-            {loading ? "Signing In..." : "Sign In"}
+            {loading ? "Verifying..." : "Enter Portal"}
           </button>
         </form>
-
-        <p className="text-center mt-8 text-sm text-slate-600 font-medium">
-          Don't have an account? <Link href="/register" className="text-blue-600 font-bold hover:underline">Create one</Link>
-        </p>
-
-        {/* Added a link to the Clinical Portal for Doctors */}
-        <div className="mt-6 pt-6 border-t border-slate-100 text-center">
-          <Link href="/doctor/login" className="text-[10px] uppercase tracking-widest font-black text-slate-400 hover:text-blue-600 transition-colors">
-            Are you a Doctor? Clinical Login
-          </Link>
-        </div>
       </div>
     </div>
   );
