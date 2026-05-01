@@ -159,63 +159,65 @@ CREATE TABLE invoice (
 );
 
 -- Departments
-USE MedNet;
-
--- 1. Departments
 INSERT INTO department (dept_name, floor_number, phone_extension) VALUES 
 ('Cardiology', 3, '101'), 
-('Pediatrics', 2, '202');
+('Neurology', 4, '102');
 
--- 2. User Accounts (Base Identity)
+-- 2. user_account (The base for all profiles - IDs 1, 2, 3, 4, 5, 6)
 INSERT INTO user_account (username, email, password_hash, role) VALUES 
 ('admin_afridi', 'admin@mednet.com', 'password123', 'Admin'),      -- ID 1
 ('dr_sam', 'sam@mednet.com', 'password123', 'Doctor'),            -- ID 2
-('assist_rahul', 'rahul@mednet.com', 'password123', 'Assistant'), -- ID 3
-('patient_mohammad', 'mohammad@gmail.com', 'password123', 'Patient'); -- ID 4
+('dr_sarah', 'sarah@mednet.com', 'password123', 'Doctor'),        -- ID 3
+('assist_rahul', 'rahul@mednet.com', 'password123', 'Assistant'), -- ID 4
+('patient_mohammad', 'mohammad@gmail.com', 'password123', 'Patient'), -- ID 5
+('patient_jasmine', 'jasmine@gmail.com', 'password123', 'Patient');  -- ID 6
 
--- 3. Admin Profile
+-- 3. admin (Linked to User 1)
 INSERT INTO admin (user_id, name) VALUES 
 (1, 'Md Afridi Hossain');
 
--- 4. Assistant Profile
+-- 4. assistant (Linked to User 4)
 INSERT INTO assistant (user_id, name, phone) VALUES 
-(3, 'Rahul Kumar', '01711223344');
+(4, 'Rahul Kumar', '01711223344');
 
--- 5. Doctor Profile
+-- 5. doctor (Linked to Users 2 and 3)
 INSERT INTO doctor (user_id, dept_id, name, specialization, consultation_fee, assistant_id) VALUES 
-(2, 1, 'Dr. Sam Aahem', 'Cardiology', 1000.00, 1);
+(2, 1, 'Dr. Sam Aahem', 'Cardiologist', 1000.00, 1),
+(3, 2, 'Dr. Sarah Khan', 'Neurologist', 1200.00, 1);
 
--- 6. Patient Profile
-INSERT INTO patient (user_id, name, gender, blood_group, weight, height) VALUES 
-(4, 'Mohammad Sam Aahem', 'Male', 'O+', 78.2, 175.5);
+-- 6. patient (Linked to Users 5 and 6)
+INSERT INTO patient (user_id, name, gender, date_of_birth, blood_group, weight, height) VALUES 
+(5, 'Mohammad Sam Aahem', 'Male', '1995-05-20', 'O+', 78.2, 175.5),
+(6, 'Jasmine Akter', 'Female', '1998-11-10', 'A-', 60.5, 162.0);
 
--- 7. Time Slots
+-- 7. time_slot (Linking to Doctors)
 INSERT INTO time_slot (doctor_id, start_time, end_time, is_booked) VALUES 
 (1, '2026-05-10 10:00:00', '2026-05-10 10:30:00', 1),
-(1, '2026-05-10 11:00:00', '2026-05-10 11:30:00', 0);
+(2, '2026-05-10 11:00:00', '2026-05-10 11:30:00', 1);
 
--- 8. Appointments
-INSERT INTO appointment (patient_id, doctor_id, slot_id, appointment_date, status) VALUES 
-(1, 1, 1, '2026-05-10 10:00:00', 'Confirmed');
+-- 8. appointment (Unique slot_id per appointment)
+INSERT INTO appointment (patient_id, doctor_id, slot_id, appointment_date, status) 
+VALUES (2, 1, 1, '2026-05-10 10:00:00', 'Confirmed');
 
--- 9. Prescriptions
-INSERT INTO prescription (appointment_id, diagnosis, soap_plan) VALUES 
-(1, 'Hypertension', 'Daily 30 min walk, reduce sodium intake');
+-- 9. prescription (Linked to Appointment 1)
+INSERT INTO prescription (appointment_id, diagnosis, soap_subjective, soap_plan) 
+VALUES (LAST_INSERT_ID(), 'General Checkup', 'Patient feels healthy', 'Maintain current diet');
 
--- 10. Medicines
-INSERT INTO medicine (name, category, price_per_unit, stock_quantity) VALUES 
-('Atorvastatin 20mg', 'Statin', 15.50, 100),
-('Amoxicillin 250mg', 'Antibiotic', 12.00, 50);
+-- 10. medicine (Pharmacy Stock)
+INSERT INTO medicine (name, category, price_per_unit, stock_quantity, reorder_level) VALUES 
+('Atorvastatin 20mg', 'Statin', 15.50, 100, 10),
+('Amlodipine 5mg', 'BP Medication', 12.00, 200, 20);
 
--- 11. Prescription Items
+-- 11. prescription_items (Meds for Prescription 1)
 INSERT INTO prescription_items (prescription_id, medicine_id, dosage_instruction, quantity_prescribed) VALUES 
-(1, 1, 'Once daily after dinner', 30);
+(1, 1, 'Once daily after dinner', 30),
+(1, 2, 'Once daily in the morning', 15);
 
--- 12. Hospital Resources
-INSERT INTO hospital_resource (resource_name, type, dept_id) VALUES 
-('Room 305', 'Room', 1),
-('Portable X-Ray', 'Equipment', 2);
+-- 12. hospital_resource
+INSERT INTO hospital_resource (resource_name, type, is_available, dept_id) VALUES 
+('Room 305 (ICU)', 'Room', 1, 1),
+('MRI Scanner', 'Diagnostic', 1, 2);
 
--- 13. Invoices
-INSERT INTO invoice (appointment_id, patient_id, consultation_total, medicine_total, grand_total, payment_status, doctor_id) VALUES 
-(1, 1, 1000.00, 465.00, 1465.00, 'Unpaid', 1);
+-- 13. invoice (Financial record for Appointment 1)
+INSERT INTO invoice (appointment_id, patient_id, consultation_total, medicine_total, grand_total, payment_status, doctor_id) 
+VALUES (LAST_INSERT_ID(), 2, 1000.00, 0.00, 1000.00, 'Unpaid', 1);
