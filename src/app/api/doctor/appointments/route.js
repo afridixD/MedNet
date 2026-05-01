@@ -10,23 +10,21 @@ export async function GET(request) {
       return NextResponse.json({ error: "User ID required" }, { status: 400 });
     }
 
-    // 1. Map the User ID to the internal Doctor ID
     const [doctorRows] = await db.execute(
       'SELECT doctor_id FROM doctor WHERE user_id = ?', 
       [userId]
     );
 
     if (!doctorRows || doctorRows.length === 0) {
-      return NextResponse.json([]); 
+      return NextResponse.json([]);
     }
 
     const doctorId = doctorRows[0].doctor_id;
 
-    // 2. Fetch all CONFIRMED appointments
-    // Based on image_b8a394.png, only 'Confirmed' status will show up here.
     const [appointments] = await db.execute(`
       SELECT 
         a.appointment_id, 
+        a.patient_id,
         p.name as patient_name, 
         a.appointment_date, 
         a.status,
@@ -37,7 +35,7 @@ export async function GET(request) {
       JOIN patient p ON a.patient_id = p.patient_id
       LEFT JOIN prescription pr ON a.appointment_id = pr.appointment_id
       WHERE a.doctor_id = ? 
-      AND a.status = 'Confirmed'
+      AND a.status IN ('Confirmed', 'Pending')
       ORDER BY a.appointment_date ASC
     `, [doctorId]);
 

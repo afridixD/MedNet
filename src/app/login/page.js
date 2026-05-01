@@ -23,22 +23,17 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok) {
-        // --- PATIENT SPECIFIC LOGIN FIX ---
-        // Check if the role is 'Patient'. If it's a Doctor, block them here.
-        if (data.role === 'Patient') {
+        if (data.user.role === 'Patient') {
           const userId = data.user.id; 
           
           if (userId) {
-            // Store role and ID for session persistence
             localStorage.setItem('userId', userId);
             localStorage.setItem('userRole', 'Patient');
-            
             router.push(`/dashboard?userId=${userId}`);
           } else {
             console.error("User ID not found in response", data);
           }
         } else {
-          // If a doctor tries to log in through the patient portal
           alert("This portal is for Patients only. Doctors, please use the Clinical Portal.");
           setLoading(false);
         }
@@ -108,12 +103,6 @@ export default function LoginPage() {
           Don't have an account? <Link href="/register" className="text-blue-600 font-bold hover:underline">Create one</Link>
         </p>
 
-        {/* Added a link to the Clinical Portal for Doctors */}
-        <div className="mt-6 pt-6 border-t border-slate-100 text-center">
-          <Link href="/doctor/login" className="text-[10px] uppercase tracking-widest font-black text-slate-400 hover:text-blue-600 transition-colors">
-            Are you a Doctor? Clinical Login
-          </Link>
-        </div>
       </div>
     </div>
   );
