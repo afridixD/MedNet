@@ -159,61 +159,63 @@ CREATE TABLE invoice (
 );
 
 -- Departments
+USE MedNet;
+
+-- 1. Departments
 INSERT INTO department (dept_name, floor_number, phone_extension) VALUES 
-('Cardiology', 3, '101'), ('Pediatrics', 2, '202');
+('Cardiology', 3, '101'), 
+('Pediatrics', 2, '202');
 
--- User Accounts
+-- 2. User Accounts (Base Identity)
 INSERT INTO user_account (username, email, password_hash, role) VALUES 
-('admin_user', 'admin@mednet.com', 'hash1', 'Admin'),
-('dr_sam', 'sam@mednet.com', 'hash2', 'Doctor'),
-('assist_rahul', 'rahul@mednet.com', 'hash3', 'Assistant'),
-('patient_mohammad', 'mohammad@gmail.com', 'hash4', 'Patient');
+('admin_afridi', 'admin@mednet.com', 'password123', 'Admin'),      -- ID 1
+('dr_sam', 'sam@mednet.com', 'password123', 'Doctor'),            -- ID 2
+('assist_rahul', 'rahul@mednet.com', 'password123', 'Assistant'), -- ID 3
+('patient_mohammad', 'mohammad@gmail.com', 'password123', 'Patient'); -- ID 4
 
--- Admin Profile
-INSERT INTO admin (user_id, name) VALUES (1, 'Super Admin'), (1, 'Clinic Manager');
+-- 3. Admin Profile
+INSERT INTO admin (user_id, name) VALUES 
+(1, 'Md Afridi Hossain');
 
--- Assistant Profile
+-- 4. Assistant Profile
 INSERT INTO assistant (user_id, name, phone) VALUES 
-(3, 'Rahul Kumar', '01711223344'), (3, 'Anita Das', '01811223344');
+(3, 'Rahul Kumar', '01711223344');
 
--- Doctor Profile
+-- 5. Doctor Profile
 INSERT INTO doctor (user_id, dept_id, name, specialization, consultation_fee, assistant_id) VALUES 
-(2, 1, 'Dr. Sam Aahem', 'Cardiologist', 1000.00, 1),
-(2, 2, 'Dr. Sarah Khan', 'Pediatrician', 800.00, 2);
+(2, 1, 'Dr. Sam Aahem', 'Cardiology', 1000.00, 1);
 
--- Patient Profile
+-- 6. Patient Profile
 INSERT INTO patient (user_id, name, gender, blood_group, weight, height) VALUES 
-(4, 'Mohammad Afridi', 'Male', 'O+', 75.5, 175.0),
-(4, 'Jasmine Akter', 'Female', 'A-', 60.2, 160.0);
+(4, 'Mohammad Sam Aahem', 'Male', 'O+', 78.2, 175.5);
 
--- Time Slots
-INSERT INTO time_slot (doctor_id, start_time, end_time) VALUES 
-(1, '2026-05-10 10:00:00', '2026-05-10 10:30:00'),
-(2, '2026-05-10 11:00:00', '2026-05-10 11:30:00');
+-- 7. Time Slots
+INSERT INTO time_slot (doctor_id, start_time, end_time, is_booked) VALUES 
+(1, '2026-05-10 10:00:00', '2026-05-10 10:30:00', 1),
+(1, '2026-05-10 11:00:00', '2026-05-10 11:30:00', 0);
 
--- Appointments
-INSERT INTO appointment (patient_id, doctor_id, slot_id, status) VALUES 
-(1, 1, 1, 'Confirmed'), (2, 2, 2, 'Pending');
+-- 8. Appointments
+INSERT INTO appointment (patient_id, doctor_id, slot_id, appointment_date, status) VALUES 
+(1, 1, 1, '2026-05-10 10:00:00', 'Confirmed');
 
--- Prescriptions
+-- 9. Prescriptions
 INSERT INTO prescription (appointment_id, diagnosis, soap_plan) VALUES 
-(1, 'Hypertension', 'Low salt diet, daily walk'), 
-(1, 'Fever', 'Rest and hydration');
+(1, 'Hypertension', 'Daily 30 min walk, reduce sodium intake');
 
--- Medicines
+-- 10. Medicines
 INSERT INTO medicine (name, category, price_per_unit, stock_quantity) VALUES 
-('Napa Extend', 'Antipyretic', 5.00, 500), 
-('Amlodipine', 'Blood Pressure', 12.00, 200);
+('Atorvastatin 20mg', 'Statin', 15.50, 100),
+('Amoxicillin 250mg', 'Antibiotic', 12.00, 50);
 
--- Prescription Items
+-- 11. Prescription Items
 INSERT INTO prescription_items (prescription_id, medicine_id, dosage_instruction, quantity_prescribed) VALUES 
-(1, 1, '1+0+1', 10), (1, 2, '0+0+1', 30);
+(1, 1, 'Once daily after dinner', 30);
 
--- Resources
+-- 12. Hospital Resources
 INSERT INTO hospital_resource (resource_name, type, dept_id) VALUES 
-('Room 301', 'Room', 1), ('ECG Machine', 'Equipment', 1);
+('Room 305', 'Room', 1),
+('Portable X-Ray', 'Equipment', 2);
 
--- Invoices
+-- 13. Invoices
 INSERT INTO invoice (appointment_id, patient_id, consultation_total, medicine_total, grand_total, payment_status, doctor_id) VALUES 
-(1, 1, 1000.00, 50.00, 1050.00, 'Paid', 1),
-(1, 2, 800.00, 0.00, 800.00, 'Unpaid', 2);
+(1, 1, 1000.00, 465.00, 1465.00, 'Unpaid', 1);
